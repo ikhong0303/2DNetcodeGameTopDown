@@ -12,7 +12,8 @@ namespace IsaacLike.Net
         [Header("Respawn (Players only)")]
         [SerializeField] private bool canRespawn = false;
         [SerializeField] private float respawnDelay = 2f;
-        [SerializeField] private Vector2 respawnPosition = Vector2.zero;
+        [SerializeField] private bool useSpawnPointManager = true;
+        [SerializeField] private Vector2 fallbackRespawnPosition = Vector2.zero;
 
         [Header("UI (optional)")]
         [SerializeField] private TMP_Text hpText;
@@ -64,6 +65,11 @@ namespace IsaacLike.Net
             RefreshText(CurrentHp.Value);
         }
 
+        public int GetMaxHp()
+        {
+            return maxHp;
+        }
+
         public void ApplyDamage(int damage)
         {
             if (!IsServer)
@@ -88,6 +94,11 @@ namespace IsaacLike.Net
                 else
                 {
                     NetworkObject.Despawn();
+                }
+
+                if (GameStateManager.Instance != null)
+                {
+                    GameStateManager.Instance.CheckGameOver();
                 }
             }
         }
@@ -116,7 +127,14 @@ namespace IsaacLike.Net
 
             yield return new UnityEngine.WaitForSeconds(respawnDelay);
 
-            transform.position = respawnPosition;
+            Vector3 spawnPos = fallbackRespawnPosition;
+
+            if (useSpawnPointManager && SpawnPointManager.Instance != null)
+            {
+                spawnPos = SpawnPointManager.Instance.GetSafePlayerSpawnPosition();
+            }
+
+            transform.position = spawnPos;
             CurrentHp.Value = maxHp;
 
             foreach (var col in colliders)
