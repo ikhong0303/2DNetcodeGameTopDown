@@ -68,10 +68,20 @@ namespace IsaacLike.Net
 
         private void StartWave()
         {
+            if (_currentWave > 0 && ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.AddWaveComplete(_currentWave);
+            }
+
             _currentWave++;
             int enemyCount = initialEnemyCount + (_currentWave - 1);
             Debug.Log($"Starting wave {_currentWave} with {enemyCount} enemies");
             SpawnEnemies(enemyCount);
+
+            if (ScoreManager.Instance != null)
+            {
+                ScoreManager.Instance.CurrentWave.Value = _currentWave;
+            }
         }
 
         private void Update()

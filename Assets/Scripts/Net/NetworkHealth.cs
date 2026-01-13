@@ -70,6 +70,35 @@ namespace IsaacLike.Net
             return maxHp;
         }
 
+        private void OnDeath()
+        {
+            if (!IsServer) return;
+
+            bool isEnemy = GetComponent<NetworkEnemyChaser>() != null;
+            bool isBoss = GetComponent<NetworkBossEnemy>() != null;
+
+            if (ScoreManager.Instance != null)
+            {
+                if (isBoss)
+                {
+                    ScoreManager.Instance.AddBossKillServerRpc();
+                }
+                else if (isEnemy)
+                {
+                    ScoreManager.Instance.AddEnemyKillServerRpc();
+                }
+            }
+
+            if (isEnemy || isBoss)
+            {
+                float dropChance = isBoss ? 0.8f : 0.2f;
+                if (Random.value < dropChance)
+                {
+                    ItemSpawner.SpawnRandomItem(transform.position);
+                }
+            }
+        }
+
         public void ApplyDamage(int damage)
         {
             if (!IsServer)
@@ -93,6 +122,7 @@ namespace IsaacLike.Net
                 }
                 else
                 {
+                    OnDeath();
                     NetworkObject.Despawn();
                 }
 

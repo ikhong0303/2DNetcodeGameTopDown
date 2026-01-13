@@ -22,11 +22,17 @@ namespace IsaacLike.Net
         private Vector2 _lastSentMove;
         private float _nextFireTime;
         private Vector2 _serverMoveInput;
+        private PlayerPowerups _powerups;
 
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
             _rb.gravityScale = 0f;
+        }
+
+        private void Start()
+        {
+            _powerups = GetComponent<PlayerPowerups>();
         }
 
         private void Update()
@@ -45,7 +51,13 @@ namespace IsaacLike.Net
                     return;
                 }
 
-                _nextFireTime = Time.time + fireInterval;
+                float actualFireInterval = fireInterval;
+                if (_powerups != null)
+                {
+                    actualFireInterval /= _powerups.FireRateMultiplier.Value;
+                }
+
+                _nextFireTime = Time.time + actualFireInterval;
                 RequestShootServerRpc(shootDir.normalized);
             }
         }
@@ -70,7 +82,12 @@ namespace IsaacLike.Net
 
             if (IsServer)
             {
-                _rb.velocity = _serverMoveInput * moveSpeed;
+                float actualMoveSpeed = moveSpeed;
+                if (_powerups != null)
+                {
+                    actualMoveSpeed *= _powerups.SpeedMultiplier.Value;
+                }
+                _rb.velocity = _serverMoveInput * actualMoveSpeed;
             }
         }
 
@@ -128,7 +145,12 @@ namespace IsaacLike.Net
 
             if (proj != null)
             {
-                proj.SetData(direction.normalized, projectileSpeed, projectileDamage, OwnerClientId);
+                int actualDamage = projectileDamage;
+                if (_powerups != null)
+                {
+                    actualDamage = Mathf.RoundToInt(projectileDamage * _powerups.DamageMultiplier.Value);
+                }
+                proj.SetData(direction.normalized, projectileSpeed, actualDamage, OwnerClientId);
             }
 
             projObj.Spawn(true);
