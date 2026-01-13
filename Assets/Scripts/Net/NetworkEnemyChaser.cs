@@ -10,8 +10,10 @@ namespace IsaacLike.Net
     {
         [SerializeField] private float moveSpeed = 2.8f;
         [SerializeField] private int contactDamage = 1;
+        [SerializeField] private float contactDamageInterval = 0.5f;
 
         private Rigidbody2D _rb;
+        private float _nextContactDamageTime;
 
         private void Awake()
         {
@@ -76,6 +78,27 @@ namespace IsaacLike.Net
             if (health != null)
             {
                 health.ApplyDamage(contactDamage);
+                _nextContactDamageTime = Time.time + contactDamageInterval;
+            }
+        }
+
+        private void OnCollisionStay2D(Collision2D collision)
+        {
+            if (!IsServer)
+            {
+                return;
+            }
+
+            if (Time.time < _nextContactDamageTime)
+            {
+                return;
+            }
+
+            var health = collision.collider.GetComponentInParent<NetworkHealth>();
+            if (health != null)
+            {
+                health.ApplyDamage(contactDamage);
+                _nextContactDamageTime = Time.time + contactDamageInterval;
             }
         }
     }

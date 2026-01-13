@@ -30,6 +30,50 @@ namespace IsaacLike.Net
             DontDestroyOnLoad(gameObject);
         }
 
+        private void OnEnable()
+        {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+            }
+        }
+
+        private void OnClientConnected(ulong clientId)
+        {
+            Debug.Log($"Client connected: {clientId}");
+
+            if (NetworkManager.Singleton.IsServer && GameStateManager.Instance != null)
+            {
+                if (NetworkManager.Singleton.ConnectedClients.Count >= 1)
+                {
+                    GameStateManager.Instance.StartGameServerRpc();
+                }
+            }
+        }
+
+        private void OnClientDisconnected(ulong clientId)
+        {
+            Debug.Log($"Client disconnected: {clientId}");
+
+            if (NetworkManager.Singleton.IsServer && GameStateManager.Instance != null)
+            {
+                if (NetworkManager.Singleton.ConnectedClients.Count == 0)
+                {
+                    GameStateManager.Instance.GameOverServerRpc();
+                }
+            }
+        }
+
         public async Task EnsureReadyAsync()
         {
             if (_isReady)
