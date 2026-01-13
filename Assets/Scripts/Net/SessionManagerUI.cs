@@ -141,12 +141,6 @@ namespace IsaacLike.Net
                 Debug.LogWarning("[SessionManagerUI] Join button is not assigned.");
             }
 
-            if (shutdownButton == null)
-            {
-                hasMissingBinding = true;
-                Debug.LogWarning("[SessionManagerUI] Shutdown button is not assigned.");
-            }
-
             if (statusText == null)
             {
                 hasMissingBinding = true;
@@ -165,5 +159,7 @@ namespace IsaacLike.Net
                 SetStatus("Missing UI bindings or SessionConnector. Check Inspector.");
             }
         }
+
+        
     }
 }
