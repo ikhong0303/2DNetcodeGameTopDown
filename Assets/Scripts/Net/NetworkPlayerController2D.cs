@@ -35,6 +35,46 @@ namespace IsaacLike.Net
             _powerups = GetComponent<PlayerPowerups>();
         }
 
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+
+            // Set spawn position based on player order
+            if (IsServer)
+            {
+                SetInitialSpawnPosition();
+            }
+        }
+
+        private void SetInitialSpawnPosition()
+        {
+            if (!IsServer) return;
+
+            // Get connected clients count to determine spawn position
+            int playerCount = NetworkManager.Singleton.ConnectedClientsList.Count;
+
+            Vector3 spawnPosition = Vector3.zero;
+
+            if (playerCount == 1)
+            {
+                // First player (host) spawns at origin
+                spawnPosition = new Vector3(0f, 0f, 0f);
+            }
+            else if (playerCount == 2)
+            {
+                // Second player (client) spawns above the host
+                spawnPosition = new Vector3(0f, 2f, 0f);
+            }
+            else
+            {
+                // Additional players spawn in a pattern
+                float offset = (playerCount - 1) * 2f;
+                spawnPosition = new Vector3(offset % 4f - 2f, Mathf.Floor(offset / 4f) * 2f, 0f);
+            }
+
+            transform.position = spawnPosition;
+        }
+
         private void Update()
         {
             if (!IsOwner)
@@ -73,6 +113,15 @@ namespace IsaacLike.Net
                     move.Normalize();
                 }
 
+                // Client-side prediction: Apply movement immediately for responsive controls
+                float actualMoveSpeed = moveSpeed;
+                if (_powerups != null)
+                {
+                    actualMoveSpeed *= _powerups.SpeedMultiplier.Value;
+                }
+                _rb.linearVelocity = move * actualMoveSpeed;
+
+                // Send input to server for authoritative movement
                 if ((move - _lastSentMove).sqrMagnitude > 0.0001f)
                 {
                     _lastSentMove = move;
@@ -80,7 +129,8 @@ namespace IsaacLike.Net
                 }
             }
 
-            if (IsServer)
+            // Server applies authoritative movement (will be synced back to clients via NetworkTransform)
+            if (IsServer && !IsOwner)
             {
                 float actualMoveSpeed = moveSpeed;
                 if (_powerups != null)
