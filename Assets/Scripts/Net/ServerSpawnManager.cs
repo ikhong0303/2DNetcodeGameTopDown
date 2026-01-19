@@ -31,8 +31,11 @@ namespace IsaacLike.Net
         {
             if (!IsServer)
             {
+                Debug.Log("[ServerSpawnManager] Not server, skipping enemy spawn");
                 return;
             }
+
+            Debug.Log($"[ServerSpawnManager] OnNetworkSpawn - IsServer: {IsServer}, useWaveSystem: {useWaveSystem}, initialEnemyCount: {initialEnemyCount}");
 
             if (useWaveSystem)
             {
@@ -46,9 +49,11 @@ namespace IsaacLike.Net
 
         public void SpawnEnemies(int count)
         {
+            Debug.Log($"[ServerSpawnManager] SpawnEnemies called with count: {count}");
+
             if (enemyPrefab == null)
             {
-                Debug.LogWarning("Enemy prefab is not assigned!");
+                Debug.LogWarning("[ServerSpawnManager] Enemy prefab is not assigned!");
                 return;
             }
 
@@ -56,26 +61,37 @@ namespace IsaacLike.Net
 
             if (SpawnPointManager.Instance != null)
             {
+                Debug.Log("[ServerSpawnManager] Using SpawnPointManager for spawn points");
                 spawnPoints = SpawnPointManager.Instance.GetEnemySpawnPoints();
+            }
+            else
+            {
+                Debug.Log("[ServerSpawnManager] Using local enemySpawnPoints array");
             }
 
             if (spawnPoints == null || spawnPoints.Length == 0)
             {
-                Debug.LogWarning("No enemy spawn points available!");
+                Debug.LogWarning("[ServerSpawnManager] No enemy spawn points available!");
                 return;
             }
+
+            Debug.Log($"[ServerSpawnManager] Found {spawnPoints.Length} spawn points");
 
             for (int i = 0; i < count; i++)
             {
                 Transform sp = spawnPoints[Random.Range(0, spawnPoints.Length)];
                 if (sp == null)
                 {
+                    Debug.LogWarning($"[ServerSpawnManager] Spawn point {i} is null");
                     continue;
                 }
 
+                Debug.Log($"[ServerSpawnManager] Spawning enemy {i + 1}/{count} at position {sp.position}");
                 NetworkObject obj = Instantiate(enemyPrefab, sp.position, Quaternion.identity);
                 obj.Spawn(true);
             }
+
+            Debug.Log($"[ServerSpawnManager] Successfully spawned {count} enemies");
         }
 
         private void StartWave()
