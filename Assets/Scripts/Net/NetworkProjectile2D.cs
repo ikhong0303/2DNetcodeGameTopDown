@@ -41,6 +41,8 @@ namespace IsaacLike.Net
         {
             _rb = GetComponent<Rigidbody2D>();
             _rb.gravityScale = 0f;
+            // Make projectile kinematic so it doesn't push other physics objects
+            _rb.bodyType = RigidbodyType2D.Kinematic;
         }
 
         public void SetData(Vector2 dir, float speed, int damage, ulong ownerClientId)
