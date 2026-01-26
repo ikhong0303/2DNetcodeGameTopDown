@@ -122,18 +122,13 @@ namespace IsaacLike.Net
                     MaxPlayers = 2,
                     IsPrivate = false,
                     Name = $"Isaac2D_{sessionId}"
-                };
+                }.WithRelayNetwork();
 
                 _activeSession = await MultiplayerService.Instance.CreateOrJoinSessionAsync(sessionId, options);
 
-                if (_activeSession.IsHost)
-                {
-                    NetworkManager.Singleton.StartHost();
-                }
-                else
-                {
-                    NetworkManager.Singleton.StartClient();
-                }
+                // Note: WithRelayNetwork() automatically manages the Netcode connection.
+                // The SDK will start Host or Client automatically based on the session role.
+                Debug.Log($"Session created/joined. IsHost: {_activeSession.IsHost}, Code: {_activeSession.Code}");
             }
             finally
             {
@@ -168,7 +163,9 @@ namespace IsaacLike.Net
                 }
 
                 _activeSession = await MultiplayerService.Instance.JoinSessionByIdAsync(sessionIdOrJoinCode);
-                NetworkManager.Singleton.StartClient();
+
+                // Note: The SDK automatically starts the client connection when joining a relay session.
+                Debug.Log($"Joined session. IsHost: {_activeSession.IsHost}, Id: {_activeSession.Id}");
             }
             finally
             {
