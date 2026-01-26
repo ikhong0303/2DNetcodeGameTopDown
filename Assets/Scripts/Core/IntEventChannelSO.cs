@@ -10,6 +10,7 @@ namespace TopDownShooter.Core
 
         public void Raise(int value)
         {
+            DevLogger.Log(nameof(IntEventChannelSO), $"Raised event on {name} with value {value}.", this);
             EventRaised?.Invoke(value);
         }
     }

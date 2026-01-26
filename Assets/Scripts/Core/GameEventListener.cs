@@ -13,6 +13,7 @@ namespace TopDownShooter.Core
             if (channel != null)
             {
                 channel.EventRaised += OnEventRaised;
+                DevLogger.Log(nameof(GameEventListener), $"Subscribed to {channel.name}.", channel);
             }
         }
 
@@ -21,11 +22,13 @@ namespace TopDownShooter.Core
             if (channel != null)
             {
                 channel.EventRaised -= OnEventRaised;
+                DevLogger.Log(nameof(GameEventListener), $"Unsubscribed from {channel.name}.", channel);
             }
         }
 
         private void OnEventRaised()
         {
+            DevLogger.Log(nameof(GameEventListener), $"Received event from {channel?.name}.", channel);
             response?.Invoke();
         }
     }
