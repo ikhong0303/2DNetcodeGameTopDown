@@ -32,7 +32,7 @@ namespace TopDownShooter.Networking
             damage = damageAmount;
             lifetime = lifeTimeSeconds;
             ownerId = ownerClientId;
-            body.velocity = direction.normalized * speed;
+            body.linearVelocity = direction.normalized * speed;
 
             if (lifeRoutine != null)
             {
@@ -88,7 +88,7 @@ namespace TopDownShooter.Networking
         {
             if (body != null)
             {
-                body.velocity = Vector2.zero;
+                body.linearVelocity = Vector2.zero;
             }
         }
 
@@ -96,7 +96,7 @@ namespace TopDownShooter.Networking
         {
             if (body != null)
             {
-                body.velocity = Vector2.zero;
+                body.linearVelocity = Vector2.zero;
             }
         }
     }

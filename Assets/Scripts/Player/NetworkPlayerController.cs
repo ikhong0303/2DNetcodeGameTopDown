@@ -1,7 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Cinemachine;
+using Unity.Cinemachine;
 using TopDownShooter.Core;
 using TopDownShooter.Pooling;
 
@@ -28,7 +28,7 @@ namespace TopDownShooter.Networking
         [SerializeField] private float reviveSearchRadius = 2.5f;
 
         [Header("Camera")]
-        [SerializeField] private CinemachineVirtualCamera playerCamera;
+        [SerializeField] private CinemachineCamera playerCamera;
 
         [Header("Events")]
         [SerializeField] private GameEventChannelSO playerDownedEvent;
@@ -141,7 +141,7 @@ namespace TopDownShooter.Networking
         {
             if (playerCamera == null)
             {
-                playerCamera = GetComponentInChildren<CinemachineVirtualCamera>();
+                playerCamera = GetComponentInChildren<CinemachineCamera>();
             }
 
             if (playerCamera != null)
@@ -217,7 +217,9 @@ namespace TopDownShooter.Networking
             float closestDistance = reviveSearchRadius;
             NetworkHealth closest = null;
 
-            foreach (var player in FindObjectsOfType<NetworkPlayerController>())
+            var players = Object.FindObjectsByType<NetworkPlayerController>(FindObjectsSortMode.None);
+
+            foreach (var player in players)
             {
                 if (player == this)
                 {
@@ -244,11 +246,11 @@ namespace TopDownShooter.Networking
         {
             if (!IsOwner || health == null || health.IsDowned.Value)
             {
-                body.velocity = Vector2.zero;
+                body.linearVelocity = Vector2.zero;
                 return;
             }
 
-            body.velocity = moveInput * moveSpeed;
+            body.linearVelocity = moveInput * moveSpeed;
         }
 
         [ServerRpc]

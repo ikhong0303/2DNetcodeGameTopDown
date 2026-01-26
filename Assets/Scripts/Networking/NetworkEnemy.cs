@@ -39,12 +39,12 @@ namespace TopDownShooter.Networking
             var target = FindClosestPlayer();
             if (target == null)
             {
-                body.velocity = Vector2.zero;
+                body.linearVelocity = Vector2.zero;
                 return;
             }
 
             Vector2 direction = (target.position - transform.position).normalized;
-            body.velocity = direction * config.MoveSpeed;
+            body.linearVelocity = direction * config.MoveSpeed;
         }
 
         private Transform FindClosestPlayer()

@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e, type: 3}
+  m_Name: New Game Config SO
+  m_EditorClassIdentifier: 
+  waveConfig: {fileID: 11400000, guid: a6c9a18ceefdde540a8fa6db5bcb687b, type: 2}
+  enemyConfig: {fileID: 11400000, guid: 9ca64feba4dc674499344b953bc0f959, type: 2}
+  projectileConfig: {fileID: 11400000, guid: c4aab93522a6f5a4a964d40766fc0a49, type: 2}
+  hitEffectConfig: {fileID: 11400000, guid: 9f970854dd22a074bbb6a6658616041d, type: 2}
