@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using TopDownShooter.Core;
+using TopDownShooter.Pooling;
 
 namespace TopDownShooter.Networking
 {
@@ -11,6 +12,7 @@ namespace TopDownShooter.Networking
 
         private Rigidbody2D body;
         private NetworkHealth health;
+        private SpriteRenderer spriteRenderer;
         private float nextAttackTime;
         private ulong lastAttackerId;
 
@@ -18,6 +20,7 @@ namespace TopDownShooter.Networking
         {
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<NetworkHealth>();
+            spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
         public override void OnNetworkSpawn()
@@ -90,20 +93,25 @@ namespace TopDownShooter.Networking
         }
 
         public void ReceiveDamage(int amount, ulong attackerId)
+    {
+        if (!IsServer || health == null || health.IsDowned.Value)
         {
-            if (!IsServer || health == null || health.IsDowned.Value)
-            {
-                return;
-            }
-
-            lastAttackerId = attackerId;
-            health.ApplyDamage(amount);
-
-            if (health.CurrentHealth.Value <= 0)
-            {
-                HandleDeath();
-            }
+            return;
         }
+
+        lastAttackerId = attackerId;
+        health.ApplyDamage(amount);
+        
+        Debug.Log($"[NetworkEnemy] Took {amount} damage. Current HP: {health.CurrentHealth.Value}/{config.MaxHealth}");
+
+        // Visual feedback
+        TriggerHitFeedbackClientRpc();
+
+        if (health.CurrentHealth.Value <= 0)
+        {
+            HandleDeath();
+        }
+    }
 
         private void HandleDeath()
         {
@@ -117,6 +125,36 @@ namespace TopDownShooter.Networking
 
                 NetworkGameManager.Instance?.RegisterEnemyDeath(this);
                 NetworkObject.Despawn(true);
+            }
+        }
+
+        // Visual hit feedback: flash red and spawn particles
+        [ClientRpc]
+        private void TriggerHitFeedbackClientRpc()
+        {
+            if (spriteRenderer != null)
+            {
+                StartCoroutine(FlashRed());
+            }
+            SpawnHitEffect(transform.position);
+        }
+
+        private System.Collections.IEnumerator FlashRed()
+        {
+            var originalColor = spriteRenderer.color;
+            spriteRenderer.color = Color.red;
+            yield return new UnityEngine.WaitForSeconds(0.1f);
+            spriteRenderer.color = originalColor;
+        }
+
+        private void SpawnHitEffect(Vector3 position)
+        {
+            var config = NetworkGameManager.Instance?.HitEffectConfig;
+            if (config == null || config.EffectPrefab == null) return;
+            var effectObject = NetworkObjectPool.Instance.Spawn(config.EffectPrefab.NetworkObject, position, Quaternion.identity);
+            if (effectObject != null && effectObject.TryGetComponent<TopDownShooter.Networking.NetworkEffect>(out var effect))
+            {
+                effect.Play(config.Lifetime);
             }
         }
     }

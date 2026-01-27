@@ -43,6 +43,7 @@ namespace TopDownShooter.Networking
         private float lastFireTime;
         private float lastStepTime;
         private NetworkHealth reviveTarget;
+        private bool inputEnabled = false;
 
         public NetworkVariable<int> Score => score;
 
@@ -51,12 +52,19 @@ namespace TopDownShooter.Networking
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<NetworkHealth>();
 
+            Debug.Log($"[OnNetworkSpawn] ClientId: {OwnerClientId}, IsOwner: {IsOwner}, IsLocalPlayer: {IsLocalPlayer}");
+
+            ConfigureCamera();
+
             if (IsOwner)
             {
                 EnableInput(true);
-                ConfigureCamera();
             }
-            else
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (IsOwner)
             {
                 EnableInput(false);
             }
@@ -64,7 +72,8 @@ namespace TopDownShooter.Networking
 
         private void OnEnable()
         {
-            if (IsOwner)
+            // Only enable input if we're already spawned and own this object
+            if (IsSpawned && IsOwner && !inputEnabled)
             {
                 EnableInput(true);
             }
@@ -72,28 +81,41 @@ namespace TopDownShooter.Networking
 
         private void OnDisable()
         {
-            EnableInput(false);
+            if (inputEnabled)
+            {
+                EnableInput(false);
+            }
         }
 
         private void EnableInput(bool enable)
         {
-            if (moveAction != null)
+            if (enable == inputEnabled) return; // Avoid duplicate subscription
+            inputEnabled = enable;
+
+            Debug.Log($"[EnableInput] ClientId: {OwnerClientId}, IsOwner: {IsOwner}, Enable: {enable}");
+
+            if (moveAction != null && moveAction.action != null)
             {
                 if (enable)
                 {
                     moveAction.action.Enable();
                     moveAction.action.performed += OnMove;
                     moveAction.action.canceled += OnMove;
+                    Debug.Log("[EnableInput] Subscribed to Move");
                 }
                 else
                 {
                     moveAction.action.performed -= OnMove;
                     moveAction.action.canceled -= OnMove;
-                    moveAction.action.Disable();
+                    // Don't disable the action - other players might be using it
                 }
             }
+            else
+            {
+                Debug.LogError($"[EnableInput] MoveAction is null! ClientId: {OwnerClientId}");
+            }
 
-            if (lookAction != null)
+            if (lookAction != null && lookAction.action != null)
             {
                 if (enable)
                 {
@@ -105,25 +127,28 @@ namespace TopDownShooter.Networking
                 {
                     lookAction.action.performed -= OnLook;
                     lookAction.action.canceled -= OnLook;
-                    lookAction.action.Disable();
                 }
             }
 
-            if (attackAction != null)
+            if (attackAction != null && attackAction.action != null)
             {
                 if (enable)
                 {
                     attackAction.action.Enable();
                     attackAction.action.performed += OnAttack;
+                    Debug.Log("[EnableInput] Subscribed to Attack");
                 }
                 else
                 {
                     attackAction.action.performed -= OnAttack;
-                    attackAction.action.Disable();
                 }
             }
+            else
+            {
+                Debug.LogError($"[EnableInput] AttackAction is null! ClientId: {OwnerClientId}");
+            }
 
-            if (interactAction != null)
+            if (interactAction != null && interactAction.action != null)
             {
                 if (enable)
                 {
@@ -135,7 +160,6 @@ namespace TopDownShooter.Networking
                 {
                     interactAction.action.started -= OnInteractStarted;
                     interactAction.action.canceled -= OnInteractCanceled;
-                    interactAction.action.Disable();
                 }
             }
         }
@@ -149,9 +173,16 @@ namespace TopDownShooter.Networking
 
             if (playerCamera != null)
             {
-                playerCamera.Follow = transform;
-                playerCamera.LookAt = transform;
-                playerCamera.gameObject.SetActive(true);
+                if (IsOwner)
+                {
+                    playerCamera.Follow = transform;
+                    playerCamera.LookAt = transform;
+                    playerCamera.gameObject.SetActive(true);
+                }
+                else
+                {
+                    playerCamera.gameObject.SetActive(false);
+                }
             }
         }
 
@@ -167,7 +198,12 @@ namespace TopDownShooter.Networking
 
         private void OnAttack(InputAction.CallbackContext context)
         {
-            if (!IsOwner || !context.performed || health == null || health.IsDowned.Value)
+            if (!IsOwner || !context.performed)
+            {
+                return;
+            }
+
+            if (health != null && health.IsDowned.Value)
             {
                 return;
             }
@@ -177,14 +213,27 @@ namespace TopDownShooter.Networking
                 return;
             }
 
-            Vector2 aimDirection = lookInput.sqrMagnitude > 0.1f ? lookInput.normalized : moveInput.normalized;
-            if (aimDirection.sqrMagnitude < 0.1f)
+            // Mouse Aiming Implementation with null check
+            Vector2 aimDirection = Vector2.right;
+            Camera mainCam = Camera.main;
+
+            if (mainCam != null && Mouse.current != null)
             {
-                aimDirection = Vector2.right;
+                Vector3 mouseScreenPos = Mouse.current.position.ReadValue();
+                mouseScreenPos.z = mainCam.nearClipPlane;
+                Vector3 mouseWorldPos = mainCam.ScreenToWorldPoint(mouseScreenPos);
+                Vector2 flatMousePos = new Vector2(mouseWorldPos.x, mouseWorldPos.y);
+                Vector2 flatPlayerPos = new Vector2(transform.position.x, transform.position.y);
+                aimDirection = (flatMousePos - flatPlayerPos).normalized;
+
+                if (aimDirection.sqrMagnitude < 0.01f)
+                {
+                    aimDirection = Vector2.right;
+                }
             }
 
             lastFireTime = Time.time;
-            
+
             if (SoundManager.Instance != null)
             {
                 SoundManager.Instance.PlaySfx("Shoot");
@@ -253,7 +302,12 @@ namespace TopDownShooter.Networking
 
         private void FixedUpdate()
         {
-            if (!IsOwner || health == null || health.IsDowned.Value)
+            if (!IsOwner)
+            {
+                return;
+            }
+
+            if (health == null || health.IsDowned.Value)
             {
                 body.linearVelocity = Vector2.zero;
                 return;
@@ -283,12 +337,35 @@ namespace TopDownShooter.Networking
             var projectilePrefab = projectileConfig.ProjectilePrefab;
             if (projectilePrefab == null)
             {
+                Debug.LogError("[FireServerRpc] ProjectilePrefab is null in Config!");
                 return;
             }
 
-            var projectileObject = NetworkObjectPool.Instance.Spawn(projectilePrefab.NetworkObject, firePoint.position, Quaternion.identity);
+            // Use GetComponent because .NetworkObject property is null on prefabs
+            var prefabNetworkObject = projectilePrefab.GetComponent<NetworkObject>();
+            if (prefabNetworkObject == null)
+            {
+                Debug.LogError($"[FireServerRpc] ProjectilePrefab '{projectilePrefab.name}' is missing a NetworkObject component!");
+                return;
+            }
+
+            var projectileObject = NetworkObjectPool.Instance.Spawn(prefabNetworkObject, firePoint.position, Quaternion.identity);
+            
+            if (projectileObject == null)
+            {
+                Debug.LogError("[FireServerRpc] Spawn returned null! Pool failed to spawn.");
+                return;
+            }
+
             var projectile = projectileObject.GetComponent<NetworkProjectile>();
-            projectile.Initialize(direction, projectileConfig.Speed, projectileConfig.Damage, projectileConfig.Lifetime, OwnerClientId);
+            if (projectile != null)
+            {
+                projectile.Initialize(direction, projectileConfig.Speed, projectileConfig.Damage, projectileConfig.Lifetime, OwnerClientId);
+            }
+            else
+            {
+                Debug.LogError("[FireServerRpc] Spawned object is missing NetworkProjectile component!");
+            }
         }
 
         [ServerRpc]
@@ -332,6 +409,40 @@ namespace TopDownShooter.Networking
         public void NotifyDowned()
         {
             playerDownedEvent?.Raise();
+        }
+
+        public void ResetPosition()
+        {
+            if (IsServer)
+            {
+                // Reset velocity
+                if (body != null)
+                {
+                    body.linearVelocity = Vector2.zero;
+                }
+                
+                // Teleport to network spawn point or zero
+                // Note: With ClientNetworkTransform (Owner authority), server might fight with client.
+                // But for restart, forcing position from server usually works if client logic respects it or after a delay.
+                // Ideally, we should use NetworkTransform.Teleport if available, but direct set works for basic sync.
+                transform.position = Vector3.zero; 
+                
+                // If using ClientNetworkTransform, we might need a ClientRpc to force client to reset its position
+                ResetPositionClientRpc(Vector3.zero);
+            }
+        }
+
+        [ClientRpc]
+        private void ResetPositionClientRpc(Vector3 position)
+        {
+            if (IsOwner)
+            {
+                transform.position = position;
+                if (body != null)
+                {
+                    body.linearVelocity = Vector2.zero;
+                }
+            }
         }
     }
 }

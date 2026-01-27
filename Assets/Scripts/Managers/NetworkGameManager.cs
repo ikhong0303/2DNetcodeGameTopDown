@@ -23,6 +23,7 @@ namespace TopDownShooter.Networking
         private readonly List<NetworkEnemy> aliveEnemies = new();
         private int currentWaveIndex;
         private bool isGameOver;
+        private bool isGameStarted;
 
         private void Awake()
         {
@@ -40,8 +41,30 @@ namespace TopDownShooter.Networking
             if (IsServer)
             {
                 PrewarmPools();
-                StartCoroutine(WaveLoop());
+                StartCoroutine(StartGameRoutine());
             }
+        }
+// ... (skipping lines)
+
+        private IEnumerator StartGameRoutine()
+        {
+            Debug.Log("Waiting for 2 players...");
+            while (NetworkManager.Singleton.ConnectedClients.Count < 2)
+            {
+                yield return new WaitForSeconds(1f);
+                Debug.Log($"Waiting for players... ({NetworkManager.Singleton.ConnectedClients.Count}/2)");
+            }
+
+            Debug.Log("2 players connected! Game starting in 10 seconds...");
+            for (int i = 10; i > 0; i--)
+            {
+                Debug.Log($"Game starting in {i}...");
+                yield return new WaitForSeconds(1f);
+            }
+
+            Debug.Log("Game Started!");
+            isGameStarted = true;
+            StartCoroutine(WaveLoop());
         }
 
         private void PrewarmPools()
@@ -54,13 +77,15 @@ namespace TopDownShooter.Networking
             var projectileConfig = gameConfig.ProjectileConfig;
             if (projectileConfig != null && projectileConfig.ProjectilePrefab != null)
             {
-                NetworkObjectPool.Instance.RegisterPrefab(projectileConfig.ProjectilePrefab.NetworkObject, projectileConfig.PoolSize);
+                // Use GetComponent because .NetworkObject property is null on prefabs
+                NetworkObjectPool.Instance.RegisterPrefab(projectileConfig.ProjectilePrefab.GetComponent<NetworkObject>(), projectileConfig.PoolSize);
             }
 
             var effectConfig = gameConfig.HitEffectConfig;
             if (effectConfig != null && effectConfig.EffectPrefab != null)
             {
-                NetworkObjectPool.Instance.RegisterPrefab(effectConfig.EffectPrefab.NetworkObject, effectConfig.PoolSize);
+                // Use GetComponent because .NetworkObject property is null on prefabs
+                NetworkObjectPool.Instance.RegisterPrefab(effectConfig.EffectPrefab.GetComponent<NetworkObject>(), effectConfig.PoolSize);
             }
         }
 
@@ -140,7 +165,7 @@ namespace TopDownShooter.Networking
 
         public void CheckGameOver()
         {
-            if (!IsServer || isGameOver)
+            if (!IsServer || isGameOver || !isGameStarted)
             {
                 return;
             }
@@ -160,7 +185,52 @@ namespace TopDownShooter.Networking
                 isGameOver = true;
                 gameOverEvent?.Raise();
                 RaiseGameOverClientRpc();
+                
+                // Auto restart after 5 seconds
+                StartCoroutine(RestartGameRoutine());
             }
+        }
+
+        private IEnumerator RestartGameRoutine()
+        {
+            Debug.Log("Game Over! Restarting in 10 seconds...");
+            for (int i = 10; i > 0; i--)
+            {
+                Debug.Log($"Restarting in {i}...");
+                yield return new WaitForSeconds(1f);
+            }
+
+            Debug.Log("Restarting Game...");
+            
+            // 1. Despawn all enemies
+            foreach (var enemy in aliveEnemies)
+            {
+                if (enemy != null && enemy.NetworkObject.IsSpawned)
+                {
+                    enemy.NetworkObject.Despawn();
+                }
+            }
+            aliveEnemies.Clear();
+
+            // 2. Reset all players
+            foreach (var player in FindObjectsOfType<NetworkPlayerController>())
+            {
+                if (player != null)
+                {
+                    if (player.TryGetComponent<NetworkHealth>(out var health))
+                    {
+                        health.ResetState();
+                    }
+                    player.ResetPosition();
+                }
+            }
+
+            // 3. Reset game state
+            currentWaveIndex = 0;
+            isGameOver = false;
+            
+            // 4. Restart Wave Loop
+            StartCoroutine(WaveLoop());
         }
 
         public EffectConfigSO HitEffectConfig => gameConfig != null ? gameConfig.HitEffectConfig : null;

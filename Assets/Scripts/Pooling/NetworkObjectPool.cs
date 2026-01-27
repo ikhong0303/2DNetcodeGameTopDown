@@ -58,13 +58,32 @@ namespace TopDownShooter.Pooling
 
         public NetworkObject Spawn(NetworkObject prefab, Vector3 position, Quaternion rotation)
         {
+            if (prefab == null)
+            {
+                Debug.LogError("[NetworkObjectPool] Spawn failed: prefab is null! Check your ProjectileConfigSO asset.");
+                return null;
+            }
+
             if (!poolLookup.TryGetValue(prefab, out var queue))
             {
                 RegisterPrefab(prefab, 0);
                 queue = poolLookup[prefab];
             }
 
-            NetworkObject instance = queue.Count > 0 ? queue.Dequeue() : Instantiate(prefab);
+            NetworkObject instance = null;
+            while (queue.Count > 0)
+            {
+                instance = queue.Dequeue();
+                if (instance != null)
+                {
+                    break;
+                }
+            }
+
+            if (instance == null)
+            {
+                instance = Instantiate(prefab);
+            }
 
             if (!prefabLookup.ContainsKey(instance))
             {

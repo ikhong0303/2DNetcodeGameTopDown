@@ -143,5 +143,16 @@ namespace TopDownShooter.Networking
                 revivedEvent?.Raise();
             }
         }
+        public void ResetState()
+        {
+            if (!IsServer)
+            {
+                return;
+            }
+
+            CancelRevive();
+            CurrentHealth.Value = maxHealth;
+            IsDowned.Value = false;
+        }
     }
 }

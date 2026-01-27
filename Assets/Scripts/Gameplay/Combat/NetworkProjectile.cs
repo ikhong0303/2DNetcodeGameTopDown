@@ -45,7 +45,9 @@ namespace TopDownShooter.Networking
         private IEnumerator DespawnAfterLifetime()
         {
             yield return new WaitForSeconds(lifetime);
-            NetworkObjectPool.Instance.Despawn(NetworkObject);
+            if (NetworkObject != null && NetworkObject.IsSpawned) {
+                NetworkObjectPool.Instance.Despawn(NetworkObject);
+            }
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -59,13 +61,17 @@ namespace TopDownShooter.Networking
             {
                 enemy.ReceiveDamage(damage, ownerId);
                 SpawnHitEffect(other.transform.position);
+                if (NetworkObject != null && NetworkObject.IsSpawned) {
                 NetworkObjectPool.Instance.Despawn(NetworkObject);
+            }
             }
             else if (other.TryGetComponent<NetworkHealth>(out var health) && !other.TryGetComponent<NetworkPlayerController>(out _))
             {
                 health.ApplyDamage(damage);
                 SpawnHitEffect(other.transform.position);
+                if (NetworkObject != null && NetworkObject.IsSpawned) {
                 NetworkObjectPool.Instance.Despawn(NetworkObject);
+            }
             }
         }
 
@@ -77,8 +83,8 @@ namespace TopDownShooter.Networking
                 return;
             }
 
-            var effectObject = NetworkObjectPool.Instance.Spawn(config.EffectPrefab.NetworkObject, position, Quaternion.identity);
-            if (effectObject.TryGetComponent<NetworkEffect>(out var effect))
+            var effectObject = NetworkObjectPool.Instance.Spawn(config.EffectPrefab.GetComponent<NetworkObject>(), position, Quaternion.identity);
+            if (effectObject != null && effectObject.TryGetComponent<NetworkEffect>(out var effect))
             {
                 effect.Play(config.Lifetime);
             }

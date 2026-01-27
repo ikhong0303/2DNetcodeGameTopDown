@@ -28,5 +28,13 @@ namespace TopDownShooter.Networking
                 NetworkManager.Singleton.StartServer();
             }
         }
+
+        public void LeaveSession()
+        {
+            if (NetworkManager.Singleton.IsListening)
+            {
+                NetworkManager.Singleton.Shutdown();
+            }
+        }
     }
 }

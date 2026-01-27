@@ -22,7 +22,7 @@ namespace TopDownShooter.Managers
         public void PlaySfx(string sfxName)
         {
             // Placeholder for SFX playback using Debug.Log as requested
-            Debug.Log($"[SFX] Play Sound: {sfxName}");
+            // Debug.Log($"[SFX] Play Sound: {sfxName}");
         }
 
         public void PlayMusic(string musicName)
