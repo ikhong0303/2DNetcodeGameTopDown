@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 using TopDownShooter.Core;
 using TopDownShooter.Pooling;
+using TopDownShooter.Managers;
 
 namespace TopDownShooter.Networking
 {
@@ -18,6 +19,7 @@ namespace TopDownShooter.Networking
 
         [Header("Movement")]
         [SerializeField] private float moveSpeed = 5f;
+        [SerializeField] private float stepRate = 0.35f;
 
         [Header("Combat")]
         [SerializeField] private Transform firePoint;
@@ -39,6 +41,7 @@ namespace TopDownShooter.Networking
         private Vector2 moveInput;
         private Vector2 lookInput;
         private float lastFireTime;
+        private float lastStepTime;
         private NetworkHealth reviveTarget;
 
         public NetworkVariable<int> Score => score;
@@ -181,6 +184,12 @@ namespace TopDownShooter.Networking
             }
 
             lastFireTime = Time.time;
+            
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.PlaySfx("Shoot");
+            }
+
             FireServerRpc(aimDirection);
         }
 
@@ -251,6 +260,16 @@ namespace TopDownShooter.Networking
             }
 
             body.linearVelocity = moveInput * moveSpeed;
+
+            // Play walk sound
+            if (moveInput.sqrMagnitude > 0.01f && Time.time - lastStepTime > stepRate)
+            {
+                lastStepTime = Time.time;
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlaySfx("Walk");
+                }
+            }
         }
 
         [ServerRpc]
