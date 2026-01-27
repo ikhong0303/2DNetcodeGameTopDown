@@ -1,101 +1,69 @@
 # 2DNetcodeGameIsac
 
-## Unity 씬 세팅(최소 구성)
-아래는 **2DIsac 씬 기준**으로, 스크립트를 실제로 동작시키기 위한 **최소 필수 연결**입니다.  
-스크립트는 “로직”만 담고 있으므로 **씬/프리팹 연결이 없으면 게임이 동작하지 않습니다.**
-
-### 1) SessionConnector 오브젝트
-1. 빈 오브젝트 생성 → 이름: `SessionConnector`
-2. 컴포넌트 추가:
-   - `SessionConnector`
-3. `DontDestroyOnLoad`로 씬 이동 시 유지됩니다.
-
-> 이 단계가 없으면 Host/Join 버튼이 동작하지 않습니다.
-
-### 2) NetworkManager 오브젝트
-1. 빈 오브젝트 생성 → 이름: `NetworkManager`
-2. 컴포넌트 추가:
-   - `NetworkManager`
-   - `UnityTransport`
-3. `NetworkManager`의 **Player Prefab**에 **플레이어 프리팹 연결**
-
-> 이 단계가 없으면 Host/Client가 시작되지 않습니다.
-
-### 3) 플레이어/투사체/적 프리팹
-**Player Prefab**
-- 컴포넌트:
-  - `NetworkObject`, `NetworkTransform`, `NetworkRigidbody2D`
-  - `Rigidbody2D`, `Collider2D`
-- 스크립트:
-  - `NetworkPlayerController2D`
-  - `NetworkHealth`
-- `NetworkPlayerController2D`의 `projectilePrefab`에 **Projectile 프리팹 연결**
-  - 연결하지 않으면 발사가 되지 않습니다.
-
-**Projectile Prefab**
-- 컴포넌트:
-  - `NetworkObject`, `NetworkTransform`, `NetworkRigidbody2D`
-  - `Rigidbody2D`, `Collider2D` (**IsTrigger 체크**)
-- 스크립트:
-  - `NetworkProjectile2D`
-
-**Enemy Prefab**
-- 컴포넌트:
-  - `NetworkObject`, `NetworkTransform`, `NetworkRigidbody2D`
-  - `Rigidbody2D`, `Collider2D`
-- 스크립트:
-  - `NetworkEnemyChaser`
-  - `NetworkHealth`
-
-### 4) UI (Host/Join 버튼)
-1. `Canvas` 생성
-2. UI 구성:
-   - `InputField (TMP)` : `RoomCode`
-   - `Button` : `Host`
-   - `Button` : `Join`
-   - `Text (TMP)` : `Status`
-3. `Canvas`에 `SessionManagerUI` 스크립트 추가 후 **각 UI 참조 연결**
-
-### 5) ServerSpawnManager (적 자동 스폰)
-1. 빈 오브젝트 생성 → 이름: `ServerSpawnManager`
-2. 스크립트: `ServerSpawnManager`
-3. **Enemy Prefab 연결**
-4. `Spawn Point`(Transform) 1~2개 생성 후 배열에 등록
-
-### 6) Unity Services 설정 확인
-1. `Project Settings → Services → Project ID` 연결 확인
-2. `Authentication` 활성화 확인
-3. `Multiplayer` 활성화 확인
+**Unity Netcode for GameObjects(NGO)**를 활용한 **2D 탑다운 멀티플레이어 슈팅 게임** 프로젝트입니다.  
+**ScriptableObject(SO)**를 활용한 **데이터 주도 설계(Data-Driven Design)**와 **이벤트 기반 아키텍처**를 채택하여 확장성과 유지보수성을 최우선으로 고려했습니다.
 
 ---
 
-## 초보자를 위한 한 줄 요약
-**스크립트는 움직임만 있고, 씬/프리팹이 연결되어야 실제로 게임이 됩니다.**
+## 📂 리포지토리 구조 및 아키텍처
 
-## 더 좋은 방법(간단 조언)
-**초보라면 첫 단계는 “씬 하나만”으로 테스트**하는 것이 가장 안전합니다.  
-Host/Client 성공 → 이동/발사 확인 → 그 다음 맵/아이템 확장 순서로 진행하세요.
+현재 프로젝트는 기능별 모듈화가 되어 있으며, 주요 로직은 `Assets/Scripts` 하위에 구성되어 있습니다.
+
+### 1. Core (데이터 & 이벤트)
+게임의 밸런스 데이터와 시스템 이벤트를 관리합니다. 코드를 수정하지 않고 유니티 인스펙터에서 게임을 기획할 수 있습니다.
+- **ConfigSOs**: `GameConfigSO`를 루트로 하여 적(`Enemy`), 웨이브(`Wave`), 투사체(`Projectile`), 이펙트(`Effect`) 설정을 관리합니다.
+- **EventChannels**: `GameEventChannelSO`, `IntEventChannelSO` 등을 통해 컴포넌트 간 직접 참조(Coupling)를 제거하고 이벤트를 발행/구독(Pub/Sub)합니다.
+
+### 2. Networking (핵심 로직 & 동기화)
+멀티플레이어 동기화와 핵심 게임플레이 로직이 통합된 영역입니다.
+- **NetworkGameManager**: 게임의 **사령탑(Server Authoritative)**입니다.
+  - 웨이브 관리 (`WaveLoop`)
+  - 적 스폰 및 관리 (`SpawnWave`)
+  - 승패 판정 및 게임 오버 체크 (`CheckGameOver`)
+- **NetworkSessionLauncher**: UI와 연결되어 Host/Client 세션을 시작하는 진입점입니다.
+- **NetworkObjectPool**: 총알이나 이펙트 등 빈번하게 생성되는 네트워크 오브젝트를 미리 생성(Prewarm)하고 재사용하여 성능을 최적화합니다.
+- **Gameplay Objects**:
+  - `NetworkEnemy`: 추적 AI 및 동기화.
+  - `NetworkProjectile`: 투사체 이동 및 충돌 처리.
+  - `NetworkHealth`: 체력 및 피격/사망 상태 동기화.
+
+### 3. Player
+- **NetworkPlayerController**: 플레이어의 입력 처리, 이동, 공격, 애니메이션 상태를 네트워크상에서 동기화합니다.
 
 ---
 
-## 지금 우선순위로 하면 좋은 것 (코딩 아님, 계획/검증 중심)
-### 1) 1P/2P “핵심 플레이 루프”만 완벽하게
-**목표:** 두 명이 들어와서 **이동 → 발사 → 피격 → 사망 → 재시작**까지 문제없이 되는지 확인하세요.  
-몬스터나 콘텐츠를 늘리기 전에 **기본 루프가 안정적이어야 이후 확장이 훨씬 쉬워집니다.**
+## 🚀 씬 세팅 가이드 (Scene Setup)
 
-### 2) 아주 안전한 테스트 순서 유지
-현재처럼 **단일 테스트 씬**에서 **Host → Client** 순서로 눌러 확인하는 방식이 가장 안전합니다.  
-문제가 생겨도 어디서 막혔는지 추적하기 쉬워서 초보자에게 특히 좋습니다.
+게임을 실행하기 위해 필요한 최소한의 씬 구성 요소입니다.
 
-### 3) UI 바인딩만 실수 없이
-UI 연결은 가장 흔한 실수 포인트입니다.  
-**입력 필드/버튼/상태 텍스트 참조**가 꼬이면 코드 문제처럼 보여도 사실은 연결 문제인 경우가 많습니다.
+### 1️⃣ NetworkManager (필수)
+- 빈 오브젝트 생성 (`NetworkManager`)
+- 컴포넌트: `NetworkManager`, `UnityTransport`
+- **설정**: 
+  - `Player Prefab`: 플레이어 프리팹 연결
+  - `NetworkPrefabs`: 투사체, 적, 이펙트 등 런타임에 스폰될 모든 프리팹 등록
 
-### “몬스터 종류 늘리기”는 언제?
-**지금은 조금 뒤가 안전합니다.**  
-기본 네트워크 루프가 완벽하지 않으면 몬스터를 늘릴수록 버그 범위가 폭발합니다.  
-먼저 2P까지 안정화하면 이후 몬스터 추가는 **콘텐츠 확장**처럼 자연스럽게 됩니다.
+### 2️⃣ NetworkGameManager (게임 로직)
+- 빈 오브젝트 생성 (`NetworkGameManager`)
+- 컴포넌트: `NetworkGameManager`
+- **설정 연결**:
+  - **Game Config**: `GameConfigSO` 에셋 연결 (모든 밸런스 데이터 포함)
+  - **Spawn Points**: 적이 등장할 `Transform` 위치 배열 할당
+  - **Events**: `WaveStarted`, `WaveCompleted`, `GameOver` 이벤트 채널 연결
 
-### 한 줄 조언 (더 좋은 방법)
-**“부트스트랩/테스트 씬 하나만 두고 Host/Client 테스트에 집중”**하세요.  
-복잡한 씬으로 들어가기 전에 단순한 씬에서 모든 것을 검증하면 디버깅이 훨씬 쉽습니다.
+### 3️⃣ UI 및 실행
+- UI 버튼(Host/Client)에 `NetworkSessionLauncher` 스크립트를 연결하거나, 해당 스크립트의 `StartHost()`, `StartClient()` 메서드를 호출하도록 설정합니다.
+
+---
+
+## 🛠️ 개발 현황 및 로드맵
+
+### ✅ 현재 구현된 기능
+- **P2P 멀티플레이 연결**: Host-Client 구조
+- **데이터 기반 웨이브 시스템**: SO 설정에 따른 적 스폰
+- **오브젝트 풀링**: 네트워크 부하 최소화
+- **기본 전투 루프**: 이동 → 발사 → 피격 → 파괴
+
+### 🚧 추후 개선 사항 (TODO)
+- **UI 시스템 고도화**: 현재 비어있는 UI 폴더 구현 (게임 오버 화면, 로비 등)
+- **Combat 로직 분리**: `Networking` 폴더에 뭉쳐있는 전투 로직을 `Combat` 폴더로 리팩토링 및 모듈화
