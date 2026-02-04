@@ -13,8 +13,3 @@ MonoBehaviour:
   m_Name: New Enemy Config SO
   m_EditorClassIdentifier: 
   enemyPrefab: {fileID: 1061686144415791815, guid: 8145ceb5eedb41f4b2601f2526df9d91, type: 3}
-  maxHealth: 5
-  moveSpeed: 3
-  contactDamage: 1
-  attackCooldown: 1
-  scoreValue: 10
