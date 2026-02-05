@@ -1,5 +1,3 @@
-# Project Boxhead Network
-
 **Unity 2D 탑다운 멀티플레이 슈팅 게임 탬플릿**  
 Netcode for GameObjects(NGO) 기반 | 2인 협동 P2P(Host-Client)
 
