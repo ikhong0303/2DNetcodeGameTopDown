@@ -1597,7 +1597,7 @@ Transform:
   m_GameObject: {fileID: 977851369}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -10, y: 0, z: 0}
+  m_LocalPosition: {x: -9.86, y: 0.03, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3343,7 +3343,7 @@ MonoBehaviour:
   waveStartedEvent: {fileID: 11400000, guid: 65994f1a8cd7b4742a3e39e8be2e8c26, type: 2}
   waveCompletedEvent: {fileID: 11400000, guid: ce4d020fda25e36498c125bc05cd3b27, type: 2}
   gameOverEvent: {fileID: 11400000, guid: f6ab9ae901583ae4fb69da7986eff128, type: 2}
-  gameWinEvent: {fileID: 0}
+  gameWinEvent: {fileID: 11400000, guid: 820f552de33bf6b46899764d975b47b8, type: 2}
   statusMessageEvent: {fileID: 11400000, guid: da3e8c9a538597843bc957454fe9efd2, type: 2}
   enemyCountUpdatedEvent: {fileID: 11400000, guid: 897ed7c0764ccd84e92e4dd3773296c6, type: 2}
 --- !u!1 &1953999827

@@ -403,6 +403,10 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7585814608783548307, guid: 0e1c7648f1ede454887e281edd597781, type: 3}
+      propertyPath: m_PresetInfoIsWorld
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7777108191032386338, guid: 0e1c7648f1ede454887e281edd597781, type: 3}
       propertyPath: m_Color.b
       value: 0.08467636
@@ -446,11 +450,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1751227605175539365, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 0.00000029802322
       objectReference: {fileID: 0}
     - target: {fileID: 1751227605175539365, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.00000017881393
       objectReference: {fileID: 0}
     - target: {fileID: 1751227605175539365, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
       propertyPath: m_LocalPosition.z
@@ -485,60 +489,12 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2216241567490644060, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Lens.OrthographicSize
-      value: 6
-      objectReference: {fileID: 0}
-    - target: {fileID: 2216241567490644060, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
       propertyPath: Target.TrackingTarget
       value: 
       objectReference: {fileID: 1000000001}
     - target: {fileID: 4263600921443650823, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
       propertyPath: m_Name
       value: 2DTopDownFollowPlayerCinemachineCamera
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Damping.x
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Damping.y
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Damping.z
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: CenterOnActivate
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.DeadZone.Size.x
-      value: 0.05
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.DeadZone.Size.y
-      value: 0.05
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.DeadZone.Enabled
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.HardLimits.Size.x
-      value: 0.2
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.HardLimits.Size.y
-      value: 0.2
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.HardLimits.Enabled
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5937130781916964266, guid: 3ec4561ab2d6da94eb3cb25fb9936f7f, type: 3}
-      propertyPath: Composition.HardLimits.Offset.x
-      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
