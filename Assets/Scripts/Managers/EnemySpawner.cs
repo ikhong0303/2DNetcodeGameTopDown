@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using TopDownShooter.Core;
+using TopDownShooter.Pooling;
 
 namespace TopDownShooter.Networking
 {
@@ -30,6 +31,7 @@ namespace TopDownShooter.Networking
         [Header("Config")]
         [SerializeField] private EnemyConfigSO enemyConfig;
         [SerializeField] private Transform[] spawnPoints;
+        [SerializeField, Min(0)] private int poolSize = 32;
 
         // ===== 상태 변수 =====
         
@@ -63,6 +65,13 @@ namespace TopDownShooter.Networking
         }
 
         // ===== 공개 메서드 =====
+        public override void OnNetworkSpawn()
+        {
+            aliveEnemies.Clear();
+            ResetSpawnState();
+            if (enemyConfig != null && enemyConfig.EnemyPrefab != null)
+                NetworkObjectPool.Instance.RegisterPrefab(enemyConfig.EnemyPrefab.GetComponent<NetworkObject>(), poolSize);
+        }
 
         /// <summary>
         /// 적 1마리 스폰
@@ -86,10 +95,9 @@ namespace TopDownShooter.Networking
             currentSpawnPointIndex = (currentSpawnPointIndex + 1) % spawnPoints.Length;
             
             // 적 인스턴스 생성
-            var enemyInstance = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);
-            
-            // 네트워크에 스폰
-            enemyInstance.NetworkObject.Spawn(true);
+            var spawned = NetworkObjectPool.Instance.Spawn(enemyPrefab.GetComponent<NetworkObject>(), spawnPoint.position, Quaternion.identity);
+            if (spawned == null) return false;
+            var enemyInstance = spawned.GetComponent<NetworkEnemy>();
             
             // 생존 적 목록에 추가
             aliveEnemies.Add(enemyInstance);
@@ -137,7 +145,7 @@ namespace TopDownShooter.Networking
             {
                 if (enemy != null && enemy.NetworkObject.IsSpawned)
                 {
-                    enemy.NetworkObject.Despawn();
+                    NetworkObjectPool.Instance.Despawn(enemy.NetworkObject);
                 }
             }
             aliveEnemies.Clear();

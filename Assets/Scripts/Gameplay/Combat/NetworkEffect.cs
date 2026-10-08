@@ -24,6 +24,8 @@ namespace TopDownShooter.Networking
     {
         // 현재 실행 중인 수명 코루틴 참조
         private Coroutine lifeRoutine;
+        private ParticleSystem[] particles;
+        private void Awake() => particles = GetComponentsInChildren<ParticleSystem>(true);
 
         /// <summary>
         /// 이펙트를 재생합니다.
@@ -32,6 +34,7 @@ namespace TopDownShooter.Networking
         /// <param name="lifetime">이펙트 지속 시간 (초)</param>
         public void Play(float lifetime)
         {
+            if (!IsServer) return;
             // 기존 코루틴이 있으면 중지 (중복 실행 방지)
             if (lifeRoutine != null)
             {
@@ -52,7 +55,7 @@ namespace TopDownShooter.Networking
             yield return new WaitForSeconds(lifetime);
             
             // 오브젝트 풀을 통해 디스폰 (네트워크에서 제거 + 풀에 반환)
-            NetworkObjectPool.Instance.Despawn(NetworkObject);
+            if (IsServer && IsSpawned) NetworkObjectPool.Instance.Despawn(NetworkObject);
         }
 
         /// <summary>
@@ -62,7 +65,11 @@ namespace TopDownShooter.Networking
         /// </summary>
         public void OnSpawned()
         {
-            // 스폰 시 필요한 초기화 로직을 여기에 추가
+            foreach (var particle in particles)
+            {
+                particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                particle.Play(true);
+            }
         }
 
         /// <summary>
@@ -72,6 +79,8 @@ namespace TopDownShooter.Networking
         /// </summary>
         public void OnDespawned()
         {
+            foreach (var particle in particles)
+                particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             // 실행 중인 코루틴이 있으면 정리
             if (lifeRoutine != null)
             {

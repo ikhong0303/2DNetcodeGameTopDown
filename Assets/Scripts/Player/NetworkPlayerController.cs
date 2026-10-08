@@ -16,6 +16,8 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
+using Unity.Netcode.Components;
+using System.Collections.Generic;
 using TopDownShooter.Core;
 using TopDownShooter.Pooling;
 using TopDownShooter.Managers;
@@ -29,6 +31,19 @@ namespace TopDownShooter.Networking
     [RequireComponent(typeof(Rigidbody2D))]
     public class NetworkPlayerController : NetworkBehaviour
     {
+        public static readonly List<NetworkPlayerController> ActivePlayers = new();
+        private ProjectilePredictionPool predictedShots;
+        private uint shotSequence;
+        private uint lastServerSequence;
+        private double nextServerFireTime;
+        public bool ConsumePredictedShot(uint sequence, out Vector3 position, out float age)
+        {
+            position = default;
+            age = 0;
+            return predictedShots != null && predictedShots.Consume(sequence, out position, out age);
+        }
+
+        private void Update() => predictedShots?.Tick();
         // ===== 입력 처리기 (SRP 분리) =====
         
         [Header("Input")]
@@ -84,6 +99,15 @@ namespace TopDownShooter.Networking
         {
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<NetworkHealth>();
+            if (!ActivePlayers.Contains(this)) ActivePlayers.Add(this);
+            lastFireTime = -fireRate;
+            lastServerSequence = 0;
+            nextServerFireTime = 0;
+            shotSequence = 0;
+            // Only the owner uses physics interpolation; NGO interpolates remote replicas.
+            body.interpolation = IsOwner ? RigidbodyInterpolation2D.Interpolate : RigidbodyInterpolation2D.None;
+            if (IsOwner && !IsServer && projectileConfig != null && projectileConfig.ProjectilePrefab != null)
+                predictedShots = new ProjectilePredictionPool(projectileConfig.ProjectilePrefab, projectileConfig.PoolSize);
             
             // InputHandler 검증
             if (inputHandler == null)
@@ -107,6 +131,9 @@ namespace TopDownShooter.Networking
         /// </summary>
         public override void OnNetworkDespawn()
         {
+            ActivePlayers.Remove(this);
+            predictedShots?.Dispose();
+            predictedShots = null;
             if (IsOwner)
             {
                 EnableInput(false);
@@ -193,6 +220,7 @@ namespace TopDownShooter.Networking
         {
             // 소유자가 아니면 무시
             if (!IsOwner) return;
+            if (!IsSpawned || projectileConfig == null || firePoint == null) return;
 
             // 다운 상태면 공격 불가
             if (health != null && health.IsDowned.Value) return;
@@ -209,7 +237,10 @@ namespace TopDownShooter.Networking
             SoundManager.Instance?.PlaySfx("Shoot");
 
             // 서버에 발사 요청
-            FireServerRpc(aimDirection);
+            uint sequence = ++shotSequence;
+            predictedShots?.Predict(sequence, firePoint.position, aimDirection,
+                projectileConfig.Speed, projectileConfig.Lifetime);
+            FireServerRpc(aimDirection, firePoint.position, sequence);
         }
 
         /// <summary>
@@ -239,7 +270,7 @@ namespace TopDownShooter.Networking
         private void FixedUpdate()
         {
             // 소유자만 이동 처리
-            if (!IsOwner) return;
+            if (!IsSpawned || !IsOwner || body == null) return;
 
             // 다운 상태면 이동 불가
             if (health == null || health.IsDowned.Value)
@@ -252,7 +283,7 @@ namespace TopDownShooter.Networking
             Vector2 moveInput = inputHandler != null ? inputHandler.MoveInput : Vector2.zero;
             
             // 이동 처리
-            body.linearVelocity = moveInput * moveSpeed;
+            body.linearVelocity = Vector2.ClampMagnitude(moveInput, 1f) * moveSpeed;
 
             // 이동 중일 때 발소리 효과음
             if (moveInput.sqrMagnitude > 0.01f && Time.time - lastStepTime > stepRate)
@@ -268,8 +299,20 @@ namespace TopDownShooter.Networking
         /// </summary>
         /// <param name="direction">발사 방향</param>
         [ServerRpc]
-        private void FireServerRpc(Vector2 direction, ServerRpcParams rpcParams = default)
+        private void FireServerRpc(Vector2 direction, Vector3 requestedOrigin, uint sequence, ServerRpcParams rpcParams = default)
         {
+            double now = NetworkManager.ServerTime.Time;
+            bool finite = float.IsFinite(direction.x) && float.IsFinite(direction.y) &&
+                float.IsFinite(requestedOrigin.x) && float.IsFinite(requestedOrigin.y) && float.IsFinite(requestedOrigin.z);
+            if (!finite || !float.IsFinite(direction.sqrMagnitude) || direction.sqrMagnitude < 0.001f || sequence <= lastServerSequence ||
+                health == null || health.IsDowned.Value || now + 0.05 < nextServerFireTime)
+            {
+                RejectShotClientRpc(sequence, new ClientRpcParams
+                { Send = new ClientRpcSendParams { TargetClientIds = new[] { OwnerClientId } } });
+                return;
+            }
+            lastServerSequence = sequence;
+            nextServerFireTime = System.Math.Max(now, nextServerFireTime) + fireRate;
             // 설정 검증
             if (projectileConfig == null || firePoint == null)
             {
@@ -290,22 +333,19 @@ namespace TopDownShooter.Networking
             }
 
             // 오브젝트 풀에서 투사체 스폰
-            var projectileObject = NetworkObjectPool.Instance.Spawn(prefabNetworkObject, firePoint.position, Quaternion.identity);
-            
-            if (projectileObject == null)
-            {
-                return;
-            }
+            // Accept a bounded owner muzzle position, avoiding the stale replicated muzzle during movement.
+            float allowance = moveSpeed * 0.25f + 0.5f;
+            Vector3 origin = (requestedOrigin - firePoint.position).sqrMagnitude <= allowance * allowance
+                ? new Vector3(requestedOrigin.x, requestedOrigin.y, firePoint.position.z) : firePoint.position;
+            NetworkObjectPool.Instance.Spawn(prefabNetworkObject, origin, Quaternion.identity, instance =>
+                instance.GetComponent<NetworkProjectile>().Initialize(direction, projectileConfig.Speed,
+                    projectileConfig.Damage, projectileConfig.Lifetime, OwnerClientId, sequence, now));
+        }
 
-            // 투사체 초기화
-            var projectile = projectileObject.GetComponent<NetworkProjectile>();
-            if (projectile != null)
-            {
-                projectile.Initialize(direction, projectileConfig.Speed, projectileConfig.Damage, projectileConfig.Lifetime, OwnerClientId);
-            }
-            else
-            {
-            }
+        [ClientRpc]
+        private void RejectShotClientRpc(uint sequence, ClientRpcParams clientRpcParams = default)
+        {
+            if (IsOwner) predictedShots?.Release(sequence);
         }
 
         // ===== 부활 기능 제거됨 =====
@@ -349,7 +389,7 @@ namespace TopDownShooter.Networking
                 
                 // 위치 리셋 (원점으로)
                 // 참고: ClientNetworkTransform 사용 시 서버와 클라이언트가 충돌할 수 있음
-                transform.position = Vector3.zero; 
+                if (IsOwner) TeleportOwner(Vector3.zero);
                 
                 // 클라이언트에도 위치 리셋 전파
                 ResetPositionClientRpc(Vector3.zero);
@@ -367,12 +407,20 @@ namespace TopDownShooter.Networking
             // 소유자만 위치 리셋 (ClientNetworkTransform 사용 시)
             if (IsOwner)
             {
-                transform.position = position;
+                TeleportOwner(position);
                 if (body != null)
                 {
                     body.linearVelocity = Vector2.zero;
                 }
             }
+        }
+
+        private void TeleportOwner(Vector3 position)
+        {
+            body.linearVelocity = Vector2.zero;
+            body.position = position;
+            if (TryGetComponent<NetworkTransform>(out var networkTransform) && networkTransform.CanCommitToTransform)
+                networkTransform.Teleport(position, transform.rotation, transform.localScale);
         }
     }
 }

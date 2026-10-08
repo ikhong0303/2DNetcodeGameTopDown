@@ -12,6 +12,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using TopDownShooter.Core;
+using TopDownShooter.Pooling;
 
 namespace TopDownShooter.Networking
 {
@@ -78,6 +79,13 @@ namespace TopDownShooter.Networking
         /// </summary>
         public override void OnNetworkSpawn()
         {
+            isReady = false;
+            nextAttackTime = 0;
+            lastAttackerId = 0;
+            var body = GetComponent<Rigidbody2D>();
+            body.linearVelocity = Vector2.zero;
+            body.simulated = IsServer;
+            body.interpolation = IsServer ? RigidbodyInterpolation2D.Interpolate : RigidbodyInterpolation2D.None;
             // 컴포넌트 참조 확인 (Awake가 호출되지 않았을 수 있음)
             if (health == null)
             {
@@ -87,6 +95,7 @@ namespace TopDownShooter.Networking
             {
                 enemyCollider = GetComponent<Collider2D>();
             }
+            if (enemyCollider != null) enemyCollider.enabled = false;
 
             // 서버에서만 초기 체력 설정 (프리팹에 설정된 값 + 난이도 보너스)
             if (IsServer)
@@ -121,10 +130,11 @@ namespace TopDownShooter.Networking
         {
             // 한 프레임 대기 (모든 네트워크 동기화 완료 보장)
             yield return null;
+            if (!IsSpawned) yield break;
             
             if (enemyCollider != null)
             {
-                enemyCollider.enabled = true;
+                enemyCollider.enabled = IsServer;
             }
             
             // 초기화 완료 - 이제 이동 및 충돌 가능
@@ -261,7 +271,7 @@ namespace TopDownShooter.Networking
             enemyAI?.Deactivate();
             
             // 공격자에게 점수 부여 (모든 플레이어에서 찾기)
-            var players = Object.FindObjectsByType<NetworkPlayerController>(FindObjectsSortMode.None);
+            var players = NetworkPlayerController.ActivePlayers;
             foreach (var player in players)
             {
                 if (player.OwnerClientId == lastAttackerId)
@@ -277,14 +287,23 @@ namespace TopDownShooter.Networking
             // 네트워크에서 디스폰 (파괴)
             if (NetworkObject != null && NetworkObject.IsSpawned)
             {
-                NetworkObject.Despawn(true);
+                NetworkObjectPool.Instance.Despawn(NetworkObject);
             }
             else
             {
-                Destroy(gameObject);
+                gameObject.SetActive(false);
             }
         }
 
-
+        public override void OnNetworkDespawn()
+        {
+            StopAllCoroutines();
+            isReady = false;
+            enemyAI?.Deactivate();
+            if (enemyCollider != null) enemyCollider.enabled = false;
+            var body = GetComponent<Rigidbody2D>();
+            body.linearVelocity = Vector2.zero;
+            body.simulated = false;
+        }
     }
 }

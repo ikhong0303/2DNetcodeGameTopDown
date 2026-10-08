@@ -86,9 +86,10 @@ namespace TopDownShooter.Networking
         /// </summary>
         public override void OnNetworkSpawn()
         {
+            // Register receiving-client prefab handlers before any wave/projectile spawns.
+            PrewarmPools();
             if (IsServer)
             {
-                PrewarmPools();                          // 오브젝트 풀 미리 생성
                 StartCoroutine(StartGameRoutine());      // 게임 시작 루틴
             }
         }

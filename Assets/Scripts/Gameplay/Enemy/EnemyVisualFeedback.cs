@@ -26,6 +26,8 @@ namespace TopDownShooter.Networking
         // ===== 컴포넌트 캐시 =====
         
         private SpriteRenderer spriteRenderer;
+        private Color baseColor;
+        private Coroutine flash;
 
         // ===== 설정 =====
         
@@ -38,6 +40,7 @@ namespace TopDownShooter.Networking
         private void Awake()
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
+            if (spriteRenderer != null) baseColor = spriteRenderer.color;
         }
 
         public override void OnNetworkSpawn()
@@ -46,6 +49,13 @@ namespace TopDownShooter.Networking
             {
                 spriteRenderer = GetComponent<SpriteRenderer>();
             }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            StopAllCoroutines();
+            flash = null;
+            if (spriteRenderer != null) spriteRenderer.color = baseColor;
         }
 
 
@@ -74,7 +84,8 @@ namespace TopDownShooter.Networking
         {
             if (spriteRenderer != null)
             {
-                StartCoroutine(FlashCoroutine());
+                if (flash != null) StopCoroutine(flash);
+                flash = StartCoroutine(FlashCoroutine());
             }
         }
 
@@ -82,10 +93,10 @@ namespace TopDownShooter.Networking
 
         private IEnumerator FlashCoroutine()
         {
-            var originalColor = spriteRenderer.color;
             spriteRenderer.color = flashColor;
             yield return new WaitForSeconds(flashDuration);
-            spriteRenderer.color = originalColor;
+            spriteRenderer.color = baseColor;
+            flash = null;
         }
 
         // ===== 이펙트 스폰 =====

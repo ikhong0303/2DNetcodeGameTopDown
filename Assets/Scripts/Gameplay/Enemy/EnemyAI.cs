@@ -32,6 +32,8 @@ namespace TopDownShooter.Networking
         // ===== 상태 =====
         
         private bool isActive = false;
+        private Transform target;
+        private float nextTargetSearch;
 
         // ===== 프로퍼티 =====
         
@@ -65,6 +67,8 @@ namespace TopDownShooter.Networking
         public void Activate()
         {
             isActive = true;
+            target = null;
+            nextTargetSearch = Time.time;
         }
 
         /// <summary>
@@ -73,6 +77,7 @@ namespace TopDownShooter.Networking
         public void Deactivate()
         {
             isActive = false;
+            target = null;
             if (body != null)
             {
                 body.linearVelocity = Vector2.zero;
@@ -87,7 +92,13 @@ namespace TopDownShooter.Networking
             if (!isActive || !IsServer) return;
 
             // 가장 가까운 플레이어 찾기
-            Transform target = FindClosestPlayer();
+            if (Time.time >= nextTargetSearch || target == null)
+            {
+                target = FindClosestPlayer();
+                nextTargetSearch = Time.time + 0.1f;
+            }
+            if (target != null && target.TryGetComponent<NetworkHealth>(out var targetHealth) && targetHealth.IsDowned.Value)
+                target = FindClosestPlayer();
             
             // 타겟이 없으면 정지
             if (target == null)
@@ -112,7 +123,7 @@ namespace TopDownShooter.Networking
             Transform closestTransform = null;
 
             // 모든 플레이어 순회
-            var players = FindObjectsByType<NetworkPlayerController>(FindObjectsSortMode.None);
+            var players = NetworkPlayerController.ActivePlayers;
             foreach (var player in players)
             {
                 // null이거나 다운된 플레이어는 제외
@@ -124,7 +135,7 @@ namespace TopDownShooter.Networking
                 }
 
                 // 거리 계산
-                float distance = Vector2.Distance(transform.position, player.transform.position);
+                float distance = ((Vector2)transform.position - (Vector2)player.transform.position).sqrMagnitude;
                 
                 // 더 가까우면 갱신
                 if (distance < closestDistance)

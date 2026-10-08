@@ -63,6 +63,7 @@ namespace TopDownShooter.Networking
         {
             if (enable == inputEnabled) return;
             inputEnabled = enable;
+            if (!enable) ResetInput();
 
             // 이동 입력 설정
             SetupAction(moveAction, enable, OnMove, InputActionPhase.Performed | InputActionPhase.Canceled);
